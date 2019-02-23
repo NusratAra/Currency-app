@@ -91,7 +91,12 @@ public class HomeFragment extends Fragment {
         saveJson = new SaveJson();
 
         loadJSONFromAsset();
+        initData();
 
+        return view;
+    }
+
+    private void initData() {
         if(json == null){
             json = saveJson.getSavedJsonInSharedPreference(getActivity());
         }
@@ -105,7 +110,6 @@ public class HomeFragment extends Fragment {
         } catch (JSONException e) {
             Log.e(TAG, "onCreateView: ", e);
         }
-        return view;
     }
 
 
@@ -117,6 +121,7 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onResponse(JSONObject response) {
                         json= response.toString();
+                        initData();
                         saveJson.saveJsonInSharedPreference(getActivity(),response.toString());
 
                     }
@@ -124,6 +129,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e("TAG", "onErrorResponse: ", error);
+                initData();
             }
         });
 
