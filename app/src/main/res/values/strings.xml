@@ -3,7 +3,7 @@
     <string name="app_title">Currency Calculate</string>
     <string name="country_name">Country name</string>
     <string name="currency">Currency</string>
-    <string name="tex">Change tex type: </string>
+    <string name="rates">Change rates type: </string>
     <string name="tex_amount">Tex amount: </string>
     <string name="total_amount">Total amount: </string>
 

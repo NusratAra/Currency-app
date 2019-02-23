@@ -2,11 +2,13 @@ package com.example.currency;
 
 
 import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.RequiresApi;
 import android.support.constraint.ConstraintLayout;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -37,8 +39,11 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Iterator;
+
+import static android.content.Context.MODE_PRIVATE;
 
 
 /**
@@ -52,7 +57,7 @@ public class HomeFragment extends Fragment {
     private JSONArray jsonArray;
 
     private Spinner countryName;
-    private EditText currency;
+    private EditText currencyEdit;
     private RadioGroup radioGroupTex;
     private String countryNameString;
     private JSONObject currencyInfo;
@@ -64,6 +69,9 @@ public class HomeFragment extends Fragment {
 
     private TextView texAmount;
     private TextView totalAmount;
+
+    private SaveJson saveJson;
+    private String json;
 
 
     public HomeFragment() {
@@ -79,7 +87,7 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
         countryName = view.findViewById(R.id.country_name);
-        currency = view.findViewById(R.id.currency);
+        currencyEdit = view.findViewById(R.id.currency);
         radioGroupTex = view.findViewById(R.id.radio_group_tex);
         texAmount = view.findViewById(R.id.tex_amount);
         totalAmount = view.findViewById(R.id.total_amount);
@@ -87,20 +95,34 @@ public class HomeFragment extends Fragment {
         countryArray = new ArrayList<>();
         detailsPairArray = new ArrayList<>();
         mQueue = Volley.newRequestQueue(getContext());
+        saveJson = new SaveJson();
 
-//        loadJSONFromAsset();
+        loadJSONFromAsset();
 
         //load local assets when failed to load data from api
         if(jsonArray == null){
             loadJSONFromAssetLocal();
         }
-        setValues();
+        json = saveJson.getSavedJsonInSharedPreference(getActivity());
+        if(json != null){
+            try {
+                Log.d(TAG, "onCreateView: "+ json);
+                JSONObject response = new JSONObject(json);
+                jsonArray = response.getJSONArray("rates");
+                getJsonArray(jsonArray);
+                setValues();
+
+            } catch (JSONException e) {
+                Log.e(TAG, "onCreateView: ", e);
+            }
+
+        }
         return view;
     }
 
 
     private void loadJSONFromAssetLocal() {
-        String json = null;
+        String jsonStr = null;
         try {
             InputStream is = this.getActivity().getAssets().open("vat.json");
 
@@ -112,10 +134,9 @@ public class HomeFragment extends Fragment {
 
             is.close();
 
-            json = new String(buffer, "UTF-8");
-            JSONObject obj = new JSONObject(json);
-            jsonArray = obj.getJSONArray("rates");
-            getJsonArray(jsonArray);
+            jsonStr = new String(buffer, "UTF-8");
+            JSONObject obj = new JSONObject(jsonStr);
+            saveJson.saveJsonInSharedPreference(getActivity(),jsonStr.toString());
 
             Log.d(TAG, "loadJSONFromAssetLocal: "+ obj);
 
@@ -134,15 +155,8 @@ public class HomeFragment extends Fragment {
                     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
                     @Override
                     public void onResponse(JSONObject response) {
-                        try {
-                            jsonArray = response.getJSONArray("rates");
-                            getJsonArray(jsonArray);
+                        saveJson.saveJsonInSharedPreference(getActivity(),response.toString());
 
-
-                        } catch (JSONException e) {
-                            Log.e(TAG, "onResponse: ", e);
-                            e.printStackTrace();
-                        }
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -156,6 +170,7 @@ public class HomeFragment extends Fragment {
         Log.d(TAG, "loadJSONFromAsset: "+ jsonArray);
         mQueue.add(jsonObjectRequest);
     }
+
 
     private void getJsonArray(JSONArray jsonArray) {
         Log.d(TAG, "onResponse: "+ jsonArray);
@@ -184,7 +199,7 @@ public class HomeFragment extends Fragment {
 
                     while (keys.hasNext()){
                         String ratesTypeNext = keys.next().toString();
-                        //tex object foreach country.
+                        //rates object foreach country.
                         rateDetails = new Pair<>(ratesTypeNext, currencyInfo.getDouble(ratesTypeNext));
                         rateDetailsArray.add(rateDetails);
                     }
@@ -201,7 +216,7 @@ public class HomeFragment extends Fragment {
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
     private void addRadioButtons(ArrayList<Pair<String, Double>> arrayList){
-        final ArrayList<Pair<String, Double>> rate = new ArrayList<>(arrayList);
+        final ArrayList<Pair<String, Double>> newRate = new ArrayList<>(arrayList);
         if(radioGroupTex != null){
             radioGroupTex.removeAllViews();
         }
@@ -210,29 +225,30 @@ public class HomeFragment extends Fragment {
             RadioGroup radioGroup = new RadioGroup(getContext());
             radioGroup.setOrientation(LinearLayout.VERTICAL);
 
-            for (int i = 0; i < rate.size(); i++) {
+
+            for (int i = 0; i < newRate.size(); i++) {
                 final RadioButton rdbtn = new RadioButton(getContext());
                 if(i==0){
                     rdbtn.setChecked(true);
                 }
                 rdbtn.setId(i);
-                rdbtn.setText(""+rate.get(i).first);
+                rdbtn.setText(newRate.get(i).first);
                 radioGroup.addView(rdbtn);
                 radioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
                     @SuppressLint("ResourceType")
                     @Override
                     public void onCheckedChanged(RadioGroup group, int checkedId) {
-                        //call calculateCurrency foreach tex type.
-                        calculateCurrency(currency.getText().toString(), rate.get(checkedId).second);
+                        //call calculateCurrency foreach rates type.
+                        calculateCurrency(currencyEdit.getText().toString(), newRate.get(checkedId).second);
                     }
                 });
 
-                //call calculateCurrency for default tex type.
+                //call calculateCurrency for default rates type.
                 if(rdbtn.isChecked()){
-                    calculateCurrency(currency.getText().toString(), rate.get(rdbtn.getId()).second);
+                    calculateCurrency(currencyEdit.getText().toString(), newRate.get(rdbtn.getId()).second);
                 }
 
-                currency.addTextChangedListener(new TextWatcher() {
+                currencyEdit.addTextChangedListener(new TextWatcher() {
                     @Override
                     public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
 
@@ -243,7 +259,7 @@ public class HomeFragment extends Fragment {
                     public void afterTextChanged(Editable s) {
                         //call calculateCurrency foreach input digit.
                         if(rdbtn.isChecked()){
-                            calculateCurrency(s.toString(), rate.get(rdbtn.getId()).second);
+                            calculateCurrency(s.toString(), newRate.get(rdbtn.getId()).second);
                         }
                     }
                 });
@@ -274,6 +290,7 @@ public class HomeFragment extends Fragment {
 
 
     }
+
 
     private void setValues(){
         //from country
