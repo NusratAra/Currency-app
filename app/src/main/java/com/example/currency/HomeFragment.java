@@ -2,13 +2,10 @@ package com.example.currency;
 
 
 import android.annotation.SuppressLint;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.RequiresApi;
-import android.support.constraint.ConstraintLayout;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -37,13 +34,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Period;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import static android.content.Context.MODE_PRIVATE;
 
 
 /**
@@ -99,62 +92,31 @@ public class HomeFragment extends Fragment {
 
         loadJSONFromAsset();
 
-        //load local assets when failed to load data from api
-        if(jsonArray == null){
-            loadJSONFromAssetLocal();
+        if(json == null){
+            json = saveJson.getSavedJsonInSharedPreference(getActivity());
         }
-        json = saveJson.getSavedJsonInSharedPreference(getActivity());
-        if(json != null){
-            try {
-                Log.d(TAG, "onCreateView: "+ json);
-                JSONObject response = new JSONObject(json);
-                jsonArray = response.getJSONArray("rates");
-                getJsonArray(jsonArray);
-                setValues();
+        try {
+            Log.d(TAG, "onCreateView: "+ json);
+            JSONObject response = new JSONObject(json);
+            jsonArray = response.getJSONArray("rates");
+            getJsonArray(jsonArray);
+            setValues();
 
-            } catch (JSONException e) {
-                Log.e(TAG, "onCreateView: ", e);
-            }
-
+        } catch (JSONException e) {
+            Log.e(TAG, "onCreateView: ", e);
         }
         return view;
     }
 
 
-    private void loadJSONFromAssetLocal() {
-        String jsonStr = null;
-        try {
-            InputStream is = this.getActivity().getAssets().open("vat.json");
-
-            int size = is.available();
-
-            byte[] buffer = new byte[size];
-
-            is.read(buffer);
-
-            is.close();
-
-            jsonStr = new String(buffer, "UTF-8");
-            JSONObject obj = new JSONObject(jsonStr);
-            saveJson.saveJsonInSharedPreference(getActivity(),jsonStr.toString());
-
-            Log.d(TAG, "loadJSONFromAssetLocal: "+ obj);
-
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void loadJSONFromAsset() {
+    public String loadJSONFromAsset() {
         String url = "https://jsonvat.com/";
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null,
                 new Response.Listener<JSONObject>() {
                     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
                     @Override
                     public void onResponse(JSONObject response) {
+                        json= response.toString();
                         saveJson.saveJsonInSharedPreference(getActivity(),response.toString());
 
                     }
@@ -162,13 +124,13 @@ public class HomeFragment extends Fragment {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e("TAG", "onErrorResponse: ", error);
-                Toast.makeText(getContext(), "Failed to load!", Toast.LENGTH_LONG).show();
             }
         });
 
 
         Log.d(TAG, "loadJSONFromAsset: "+ jsonArray);
         mQueue.add(jsonObjectRequest);
+        return json;
     }
 
 

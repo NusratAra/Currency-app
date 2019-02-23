@@ -1,6 +1,5 @@
 package com.example.currency;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.support.v4.app.FragmentActivity;
 
